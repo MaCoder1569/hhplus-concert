@@ -1,0 +1,314 @@
+openapi: 3.0.1
+
+info:
+  title: Concert Reservation API
+  version: 1.0.0
+  description: Concert Reservation API
+
+servers:
+  - url: http://localhost:8080/api/v1
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Auth
+  - name: Queue
+  - name: Concert
+  - name: Reservation
+  - name: Wallet
+  - name: Payment
+
+paths:
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+
+  /queue/tokens:
+    post:
+      tags: [Queue]
+      summary: Issue queue token
+      responses:
+        201:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueueTokenResponse'
+
+  /queue/position:
+    get:
+      tags: [Queue]
+      summary: Get queue position
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/QueuePositionResponse'
+
+  /concerts:
+    get:
+      tags: [Concert]
+      summary: Get concerts
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConcertResponse'
+
+  /concerts/{concertId}/schedules:
+    get:
+      tags: [Concert]
+      parameters:
+        - in: path
+          name: concertId
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ScheduleResponse'
+
+  /schedules/{scheduleId}/seats:
+    get:
+      tags: [Concert]
+      parameters:
+        - in: path
+          name: scheduleId
+          required: true
+          schema:
+            type: string
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SeatMapResponse'
+
+  /reservations:
+    post:
+      tags: [Reservation]
+      summary: Hold seat
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReservationRequest'
+      responses:
+        201:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReservationResponse'
+
+    delete:
+      tags: [Reservation]
+      parameters:
+        - in: query
+          name: reservationId
+          required: true
+          schema:
+            type: string
+      responses:
+        204:
+          description: Deleted
+
+  /wallet/balance:
+    get:
+      tags: [Wallet]
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WalletBalance'
+
+  /wallet/charge:
+    post:
+      tags: [Wallet]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WalletChargeRequest'
+      responses:
+        200:
+          description: Charged
+
+  /payments:
+    post:
+      tags: [Payment]
+      parameters:
+        - in: header
+          name: Idempotency-Key
+          required: true
+          schema:
+            type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentRequest'
+      responses:
+        200:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResponse'
+
+
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+
+    TokenResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
+
+    QueueTokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        position:
+          type: integer
+        expiresAt:
+          type: string
+          format: date-time
+
+    QueuePositionResponse:
+      type: object
+      properties:
+        position:
+          type: integer
+        etaSeconds:
+          type: integer
+
+    ConcertResponse:
+      type: object
+      properties:
+        concertId:
+          type: string
+        title:
+          type: string
+        status:
+          type: string
+          enum: [OPEN, CLOSED]
+
+    ScheduleResponse:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        showAt:
+          type: string
+          format: date-time
+        basePrice:
+          type: integer
+
+    SeatMapResponse:
+      type: object
+      properties:
+        seats:
+          type: array
+          items:
+            type: object
+            properties:
+              seatNo:
+                type: integer
+              status:
+                type: string
+                enum: [AVAILABLE, HELD, SOLD]
+
+    ReservationRequest:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        seatNo:
+          type: integer
+
+    ReservationResponse:
+      type: object
+      properties:
+        reservationId:
+          type: string
+        status:
+          type: string
+          enum: [HELD, CONFIRMED]
+        holdExpiresAt:
+          type: string
+          format: date-time
+
+    WalletChargeRequest:
+      type: object
+      properties:
+        amount:
+          type: number
+
+    WalletBalance:
+      type: object
+      properties:
+        balance:
+          type: number
+
+    PaymentRequest:
+      type: object
+      properties:
+        reservationId:
+          type: string
+        amount:
+          type: number
+
+    PaymentResponse:
+      type: object
+      properties:
+        paymentId:
+          type: string
+        status:
+          type: string
+          enum: [CREATED, SUCCESS, FAILED, CANCELED]
+        paidAt:
+          type: string
+          format: date-time
